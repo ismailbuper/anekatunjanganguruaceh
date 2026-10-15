@@ -6,15 +6,17 @@ const path = require('path');
 
 const app = express();
 
-// Middleware parsing & folder statis
+// Middleware parsing & penanganan folder statis
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Konfigurasi Multer untuk penampungan sementara (Gunakan /tmp untuk kompatibilitas Vercel Serverless)
+// Menyajikan folder 'public' menggunakan path.join dengan process.cwd() agar kompatibel di Vercel
+app.use(express.static(path.join(process.cwd(), 'public')));
+
+// Konfigurasi Multer untuk penampungan sementara di Vercel Serverless (/tmp)
 const upload = multer({ dest: '/tmp/' });
 
-// Lokasi penyimpanan data arsip JSON
+// Lokasi penyimpanan data arsip JSON sementara
 const DATA_FILE = path.join('/tmp', 'rekap_data.json');
 
 // Helper untuk membaca file JSON
@@ -39,9 +41,9 @@ function saveAllData(data) {
     }
 }
 
-// Route Utama (Menyajikan file index.html)
+// Route Utama (Menyajikan file index.html dari folder public)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
 
 // 1. Endpoint Ambil Seluruh Data Arsip
@@ -65,12 +67,12 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
         const sheetName = workbook.SheetNames[0];
         const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
         
-        // Hapus file fisik sementara
+        // Hapus file fisik sementara dari folder /tmp
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
 
-        // Petakan metadata ke setiap baris
+        // Petakan metadata ke setiap baris data Excel
         const newRows = sheetData.map(row => ({
             Bulan: bulan || '-',
             Gelombang: gelombang || '-',
@@ -81,63 +83,8 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
 
         let allData = getSavedData();
         
-        // Logika Overwrite / Replace Data Lama jika Kombinasi Unik Sama
+        // Logika Replace / Overwrite jika kombinasi periode & jenis data sama
         allData = allData.filter(item => 
             !(item.Bulan === bulan && 
               item.Gelombang === gelombang && 
-              (item.JenisData || 'Lainnya') === (jenisData || 'Lainnya') && 
-              (item.GolonganJenis || 'Lainnya') === (golongan || 'Lainnya'))
-        );
-
-        // Gabungkan dan simpan
-        allData = allData.concat(newRows);
-        saveAllData(allData);
-
-        res.json({
-            success: true,
-            message: 'Data berhasil diarsipkan ke server!',
-            totalData: allData.length,
-            data: allData
-        });
-
-    } catch (error) {
-        console.error('Error saat upload:', error);
-        res.status(500).json({ success: false, message: 'Gagal memproses berkas Excel.' });
-    }
-});
-
-// 3. Endpoint Hapus Data
-app.post('/api/delete', (req, res) => {
-    try {
-        const { indices } = req.body;
-        let allData = getSavedData();
-
-        if (indices && Array.isArray(indices)) {
-            const sortedIndices = [...indices].sort((a, b) => b - a);
-            sortedIndices.forEach(idx => {
-                if (idx >= 0 && idx < allData.length) {
-                    allData.splice(idx, 1);
-                }
-            });
-
-            saveAllData(allData);
-            return res.json({ success: true, message: `${indices.length} baris data berhasil dihapus!`, data: allData });
-        } else {
-            return res.status(400).json({ success: false, message: 'Indeks data tidak valid.' });
-        }
-    } catch (error) {
-        console.error('Error saat hapus data:', error);
-        res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server saat menghapus data.' });
-    }
-});
-
-// Konfigurasi Jalankan Server untuk Lokal vs Vercel
-if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
-}
-
-// Export module wajib untuk Vercel Serverless
-module.exports = app;
+              (item.JenisData || 'Lainnya') === (jenis
