@@ -44,7 +44,7 @@
             backdrop-filter: blur(10px);
         }
         .login-card h3 { margin-top: 10px; color: #1a1a1a; margin-bottom: 4px; font-size: 21px; font-weight: 700; }
-        .login-card p.subtitle { font-size: 12px; color: #dc3545; margin-bottom: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .login-card p.subtitle { font-size: 12px; color: #dc3545; margin-bottom: 22px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .login-card input { 
             width: 100%; 
@@ -82,14 +82,6 @@
         }
         
         .login-error { color: #dc3545; font-size: 13px; margin-bottom: 12px; display: none; font-weight: bold; background: #f8d7da; padding: 8px; border-radius: 4px; border: 1px solid #f5c6cb; }
-        
-        /* KOTAK INFORMASI AKUN LOGIN UNTUK PENGGUNA */
-        .login-info-box { background-color: #f1f3f5; border-left: 4px solid #0d6efd; padding: 12px; margin-bottom: 20px; border-radius: 6px; text-align: left; font-size: 13px; color: #333; }
-        .login-info-box label { font-weight: bold; color: #212529; margin-bottom: 6px; display: block; }
-        .login-info-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-        .login-info-row:last-child { margin-bottom: 0; }
-        .login-info-row span { color: #495057; font-weight: 600; }
-        .login-info-row code { background: #ffffff; padding: 3px 8px; border-radius: 4px; border: 1px solid #ced4da; font-weight: bold; color: #dc3545; font-family: monospace; }
 
         /* HEADER & KOP APLIKASI UTAMA BERGAYA GLASSMORPHISM */
         header { 
@@ -197,18 +189,6 @@
         </div>
         <h3>Aneka Tunjangan Guru Aceh</h3>
         <p class="subtitle">Dinas Pendidikan Aceh</p>
-        
-        <div class="login-info-box">
-            <label>📌 Akun Login Default:</label>
-            <div class="login-info-row">
-                <span>Username:</span>
-                <code>admin</code>
-            </div>
-            <div class="login-info-row">
-                <span>Password:</span>
-                <code>admin123</code>
-            </div>
-        </div>
 
         <div id="loginError" class="login-error">Username atau Password salah!</div>
         
@@ -277,7 +257,7 @@
                 <div>
                     <label for="pilihGelombang">Pilih Gelombang:</label>
                     <select id="pilihGelombang" required>
-                        <option value="">-- Pilih Gelombang --</option>
+                         <option value="">-- Pilih Gelombang --</option>
                         <option value="Gelombang 1">Gelombang 1</option>
                         <option value="Gelombang 2">Gelombang 2</option>
                         <option value="Gelombang 3">Gelombang 3</option>
@@ -291,18 +271,17 @@
                         <option value="Gelombang 11">Gelombang 11</option>
                         <option value="Gelombang 12">Gelombang 12</option>
                         <option value="Gelombang Susulan">Gelombang Susulan</option>
+                        <option value="Gelombang Susulan I">Gelombang Susulan I</option>
                     </select>
                 </div>
                 <div>
                     <label for="pilihGolongan">Golongan Jenis:</label>
-                    <select id="pilihGolongan" required>
+                     <select id="pilihGolongan" required>
                         <option value="">-- Pilih Golongan Jenis --</option>
-                        <option value="SMA">SMA</option>
-                        <option value="SMK">SMK</option>
-                        <option value="SLB">SLB</option>
-                        <option value="Pengawas">Pengawas</option>
+                        <option value="SMA, SMK, SLB, Pegawas">SMA, SMK, SLB, Pengawas</option>
                         <option value="Sekolah Rakyat">Sekolah Rakyat</option>
                         <option value="Sekolah Garuda">Sekolah Garuda</option>
+                        <option value="Sekolah Indonesia Jeddah">Sekolah Indonesia Jeddah</option>
                         <option value="Lainnya">Lainnya</option>
                     </select>
                 </div>
