@@ -5,19 +5,5 @@
       "src": "server.js",
       "use": "@vercel/node"
     }
-  ],
-  "routes": [
-    {
-      "src": "/upload",
-      "dest": "server.js"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "server.js"
-    },
-    {
-      "src": "/((?!api/|upload).*)",
-      "dest": "/public/$1"
-    }
   ]
 }
