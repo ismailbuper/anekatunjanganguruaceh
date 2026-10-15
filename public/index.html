@@ -651,507 +651,415 @@
             periodeSelect.innerHTML += `<option value="${p}">${p}</option>`;
         });
 
-        const uniqueStatus = [...new Set(globalData.map(item => item[statusKey]))];
+        const uniqueStatus = [...new Set(globalData.map(item => item[statusKey] || '-'))];
         statusSelect.innerHTML = '<option value="ALL">-- Semua Status Kepegawaian --</option>';
-        uniqueStatus.forEach(val => {
-            if (val !== undefined && val !== '') statusSelect.innerHTML += `<option value="${val}">${val}</option>`;
+        uniqueStatus.forEach(s => {
+            statusSelect.innerHTML += `<option value="${s}">${s}</option>`;
         });
-
-        document.getElementById('statTotal').textContent = globalData.length.toLocaleString('id-ID') + ' baris';
-        
-        let totalBruto = 0, totalNetto = 0, totalPph = 0, totalJkn = 0;
-        const kBruto = globalColumns.find(c => /bruto/i.test(c));
-        const kNetto = globalColumns.find(c => /netto/i.test(c));
-        const kPph = globalColumns.find(c => /pph/i.test(c));
-        const kJkn = globalColumns.find(c => /jkn/i.test(c));
-
-        globalData.forEach(row => {
-            if (kBruto) totalBruto += parseFloat(row[kBruto]) || 0;
-            if (kNetto) totalNetto += parseFloat(row[kNetto]) || 0;
-            if (kPph) totalPph += parseFloat(row[kPph]) || 0;
-            if (kJkn) totalJkn += parseFloat(row[kJkn]) || 0;
-        });
-
-        document.getElementById('statTotalBruto').textContent = 'Rp ' + totalBruto.toLocaleString('id-ID');
-        document.getElementById('statTotalNetto').textContent = 'Rp ' + totalNetto.toLocaleString('id-ID');
-        document.getElementById('statTotalPph').textContent = 'Rp ' + totalPph.toLocaleString('id-ID');
-        document.getElementById('statTotalJkn').textContent = 'Rp ' + totalJkn.toLocaleString('id-ID');
     }
 
     function terapkanFilter() {
-        const selPeriode = periodeSelect.value;
-        const satdikKeyword = searchSatdikInput.value.toLowerCase().trim();
-        const selStatus = statusSelect.value;
-        const keyword = searchInput.value.toLowerCase().trim();
-
-        if (selPeriode === 'ALL') {
-            infoTabelJudul.textContent = 'Rincian Seluruh Data Arsip Keuangan';
-        }
+        const periodeVal = periodeSelect.value;
+        const satdikQuery = searchSatdikInput.value.toLowerCase().trim();
+        const statusVal = statusSelect.value;
+        const generalQuery = searchInput.value.toLowerCase().trim();
 
         filteredGlobalData = globalData.filter(item => {
-            let itemPeriode = `${item.Bulan} - ${item.Gelombang} (${item.JenisData || 'Lainnya'})`;
-            let mPeriode = (selPeriode === 'ALL' || itemPeriode === selPeriode);
-            
-            let mSatdik = true;
-            if (satdikKeyword) {
+            const currentPeriod = `${item.Bulan} - ${item.Gelombang} (${item.JenisData || 'Lainnya'})`;
+            if (periodeVal !== 'ALL' && currentPeriod !== periodeVal) return false;
+
+            if (satdikQuery && satdikKey) {
                 const satdikVal = String(item[satdikKey] || '').toLowerCase();
-                mSatdik = satdikVal.includes(satdikKeyword);
+                if (!satdikVal.includes(satdikQuery)) return false;
             }
 
-            let mStatus = (selStatus === 'ALL' || String(item[statusKey]) === String(selStatus));
-            
-            let mKeyword = true;
-            if (keyword) {
-                const rowString = Object.values(item).join(' ').toLowerCase();
-                mKeyword = rowString.includes(keyword);
+            if (statusVal !== 'ALL' && statusKey) {
+                const itemStatus = String(item[statusKey] || '');
+                if (itemStatus !== statusVal) return false;
             }
 
-            return mPeriode && mSatdik && mStatus && mKeyword;
+            if (generalQuery) {
+                const matchGeneral = Object.values(item).some(val => 
+                    String(val).toLowerCase().includes(generalQuery)
+                );
+                if (!matchGeneral) return false;
+            }
+
+            return true;
         });
-
-        let filteredBruto = 0, filteredNetto = 0, filteredPph = 0, filteredJkn = 0;
-        const kBruto = globalColumns.find(c => /bruto/i.test(c));
-        const kNetto = globalColumns.find(c => /netto/i.test(c));
-        const kPph = globalColumns.find(c => /pph/i.test(c));
-        const kJkn = globalColumns.find(c => /jkn/i.test(c));
-
-        filteredGlobalData.forEach(row => {
-            if (kBruto) filteredBruto += parseFloat(row[kBruto]) || 0;
-            if (kNetto) filteredNetto += parseFloat(row[kNetto]) || 0;
-            if (kPph) filteredPph += parseFloat(row[kPph]) || 0;
-            if (kJkn) filteredJkn += parseFloat(row[kJkn]) || 0;
-        });
-
-        document.getElementById('statFiltered').textContent = filteredGlobalData.length.toLocaleString('id-ID') + ' baris';
-        document.getElementById('statFilteredBruto').textContent = 'Rp ' + filteredBruto.toLocaleString('id-ID');
-        document.getElementById('statFilteredNetto').textContent = 'Rp ' + filteredNetto.toLocaleString('id-ID');
-        document.getElementById('statFilteredPph').textContent = 'Rp ' + filteredPph.toLocaleString('id-ID');
-        document.getElementById('statFilteredJkn').textContent = 'Rp ' + filteredJkn.toLocaleString('id-ID');
 
         currentPage = 1;
-        tampilkanTabelHalaman();
+        renderTabel();
+        perbaruiStatistik();
     }
 
-    periodeSelect.addEventListener('change', terapkanFilter);
-    searchSatdikInput.addEventListener('input', terapkanFilter);
-    statusSelect.addEventListener('change', terapkanFilter);
-    searchInput.addEventListener('input', terapkanFilter);
-
-    function formatAngka(val) {
-        const num = parseFloat(val);
-        if (isNaN(num)) return val;
-        return num.toLocaleString('id-ID');
+    function formatRupiah(angka) {
+        if (isNaN(angka)) return "Rp 0";
+        return "Rp " + Number(angka).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     }
 
-    function tampilkanTabelHalaman() {
-        if (filteredGlobalData.length === 0) {
+    function cariKolomKeuangan(keywords) {
+        return globalColumns.find(col => keywords.some(kw => col.toLowerCase().includes(kw))) || '';
+    }
+
+    function perbaruiStatistik() {
+        const brutoKey = cariKolomKeuangan(['bruto', 'jumlah_bruto', 'kotor']);
+        const pphKey = cariKolomKeuangan(['pph', 'pajak']);
+        const jknKey = cariKolomKeuangan(['jkn', 'bpjs']);
+        const nettoKey = cariKolomKeuangan(['netto', 'jumlah_netto', 'bersih']);
+
+        function hitungTotal(dataArr) {
+            let b = 0, p = 0, j = 0, n = 0;
+            dataArr.forEach(row => {
+                if (brutoKey) b += parseFloat(row[brutoKey]) || 0;
+                if (pphKey) p += parseFloat(row[pphKey]) || 0;
+                if (jknKey) j += parseFloat(row[jknKey]) || 0;
+                if (nettoKey) n += parseFloat(row[nettoKey]) || 0;
+            });
+            return { bruto: b, pph: p, jkn: j, netto: n };
+        }
+
+        const totalGlobal = hitungTotal(globalData);
+        const totalFilter = hitungTotal(filteredGlobalData);
+
+        document.getElementById('statTotal').textContent = `${globalData.length} baris`;
+        document.getElementById('statTotalBruto').textContent = formatRupiah(totalGlobal.bruto);
+        document.getElementById('statTotalPph').textContent = formatRupiah(totalGlobal.pph);
+        document.getElementById('statTotalJkn').textContent = formatRupiah(totalGlobal.jkn);
+        document.getElementById('statTotalNetto').textContent = formatRupiah(totalGlobal.netto);
+
+        document.getElementById('statFiltered').textContent = `${filteredGlobalData.length} baris`;
+        document.getElementById('statFilteredBruto').textContent = formatRupiah(totalFilter.bruto);
+        document.getElementById('statFilteredPph').textContent = formatRupiah(totalFilter.pph);
+        document.getElementById('statFilteredJkn').textContent = formatRupiah(totalFilter.jkn);
+        document.getElementById('statFilteredNetto').textContent = formatRupiah(totalFilter.netto);
+    }
+
+    function renderTabel() {
+        if (globalData.length === 0) {
             tableHead.innerHTML = '';
-            tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 20px;">Tidak ada data ditemukan untuk filter/pencarian ini.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="100" style="text-align: center; padding: 20px;">Belum ada data arsip di server. Silakan unggah file Excel terlebih dahulu.</td></tr>';
             tableFoot.innerHTML = '';
+            paginationInfo.textContent = 'Tidak ada data.';
             paginationControls.innerHTML = '';
-            paginationInfo.textContent = 'Menampilkan 0 dari 0 data';
             return;
         }
 
-        let headHtml = '<tr><th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)"></th>';
-        globalColumns.forEach(col => { headHtml += `<th>${col}</th>`; });
-        headHtml += '</tr>';
-        tableHead.innerHTML = headHtml;
-
-        const totalPages = Math.ceil(filteredGlobalData.length / rowsPerPage);
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
+        let headerHtml = '<tr><th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)"></th><th>No</th>';
+        globalColumns.forEach(col => {
+            headerHtml += `<th>${col}</th>`;
+        });
+        headerHtml += '</tr>';
+        tableHead.innerHTML = headerHtml;
 
         const startIndex = (currentPage - 1) * rowsPerPage;
         const endIndex = startIndex + rowsPerPage;
-        const paginatedData = filteredGlobalData.slice(startIndex, endIndex);
+        const pageData = filteredGlobalData.slice(startIndex, endIndex);
 
         let bodyHtml = '';
-        paginatedData.forEach(row => {
-            const originalIndex = globalData.indexOf(row);
-            bodyHtml += '<tr>';
-            bodyHtml += `<td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${originalIndex}"></td>`;
-            
+        pageData.forEach((row, idx) => {
+            const absoluteIdx = globalData.indexOf(row);
+            bodyHtml += `<tr>
+                <td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${absoluteIdx}"></td>
+                <td>${startIndex + idx + 1}</td>`;
             globalColumns.forEach(col => {
-                let val = row[col] !== undefined ? row[col] : '';
-                const colLower = col.toLowerCase();
-                if (colLower.includes('bruto') || colLower.includes('pph') || colLower.includes('jkn') || colLower.includes('netto')) {
-                    val = formatAngka(val);
-                }
-                bodyHtml += `<td>${val}</td>`;
+                bodyHtml += `<td>${row[col] !== undefined ? row[col] : ''}</td>`;
             });
             bodyHtml += '</tr>';
         });
+
+        if (pageData.length === 0) {
+            bodyHtml = `<tr><td colspan="${globalColumns.length + 2}" style="text-align: center; padding: 20px; color: #6c757d;">Tidak ada data yang cocok dengan kriteria pencarian/filter.</td></tr>`;
+        }
         tableBody.innerHTML = bodyHtml;
 
-        let fullBruto = 0, fullPph = 0, fullJkn = 0, fullNetto = 0;
+        const brutoKey = cariKolomKeuangan(['bruto', 'jumlah_bruto', 'kotor']);
+        const pphKey = cariKolomKeuangan(['pph', 'pajak']);
+        const jknKey = cariKolomKeuangan(['jkn', 'bpjs']);
+        const nettoKey = cariKolomKeuangan(['netto', 'jumlah_netto', 'bersih']);
+
+        let sumBruto = 0, sumPph = 0, sumJkn = 0, sumNetto = 0;
         filteredGlobalData.forEach(row => {
-            const b = globalColumns.find(c => /bruto/i.test(c));
-            const p = globalColumns.find(c => /pph/i.test(c));
-            const j = globalColumns.find(c => /jkn/i.test(c));
-            const n = globalColumns.find(c => /netto/i.test(c));
-            if (b) fullBruto += parseFloat(row[b]) || 0;
-            if (p) fullPph += parseFloat(row[p]) || 0;
-            if (j) fullJkn += parseFloat(row[j]) || 0;
-            if (n) fullNetto += parseFloat(row[n]) || 0;
+            if (brutoKey) sumBruto += parseFloat(row[brutoKey]) || 0;
+            if (pphKey) sumPph += parseFloat(row[pphKey]) || 0;
+            if (jknKey) sumJkn += parseFloat(row[jknKey]) || 0;
+            if (nettoKey) sumNetto += parseFloat(row[nettoKey]) || 0;
         });
 
-        let footHtml = '<tr><td></td>';
-        globalColumns.forEach((col, index) => {
-            const colLower = col.toLowerCase();
-            if (index === 0) {
-                footHtml += `<td><strong>TOTAL KESELURUHAN</strong></td>`;
-            } else if (colLower.includes('bruto') || colLower.includes('salur bruto')) {
-                footHtml += `<td><strong>${formatAngka(fullBruto)}</strong></td>`;
-            } else if (colLower.includes('pph')) {
-                footHtml += `<td><strong>${formatAngka(fullPph)}</strong></td>`;
-            } else if (colLower.includes('jkn') || colLower.includes('pot jkn')) {
-                footHtml += `<td><strong>${formatAngka(fullJkn)}</strong></td>`;
-            } else if (colLower.includes('netto') || colLower.includes('netto salur')) {
-                footHtml += `<td><strong>${formatAngka(fullNetto)}</strong></td>`;
-            } else {
-                footHtml += `<td></td>`;
-            }
+        let footHtml = `<tr><td colspan="2" style="text-align: right; font-weight: bold;">TOTAL HALAMAN INI / FILTER:</td>`;
+        globalColumns.forEach(col => {
+            if (col === brutoKey) footHtml += `<td>${formatRupiah(sumBruto)}</td>`;
+            else if (col === pphKey) footHtml += `<td>${formatRupiah(sumPph)}</td>`;
+            else if (col === jknKey) footHtml += `<td>${formatRupiah(sumJkn)}</td>`;
+            else if (col === nettoKey) footHtml += `<td>${formatRupiah(sumNetto)}</td>`;
+            else footHtml += `<td></td>`;
         });
         footHtml += '</tr>';
         tableFoot.innerHTML = footHtml;
 
-        paginationInfo.textContent = `Menampilkan baris ${startIndex + 1} - ${Math.min(endIndex, filteredGlobalData.length)} dari total ${filteredGlobalData.length.toLocaleString('id-ID')} data`;
-
-        let paginationHtml = `<button onclick="ubahHalaman(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>« Prev</button>`;
-        let startPage = Math.max(1, currentPage - 3);
-        let endPage = Math.min(totalPages, startPage + 6);
-        if (endPage - startPage < 6) startPage = Math.max(1, endPage - 6);
-
-        if (startPage > 1) {
-            paginationHtml += `<button onclick="ubahHalaman(1)">1</button>`;
-            if (startPage > 2) paginationHtml += `<span style="padding: 0 5px;">...</span>`;
+        const totalPages = Math.ceil(filteredGlobalData.length / rowsPerPage) || 1;
+        paginationInfo.textContent = `Menampilkan ${startIndex + 1} - ${Math.min(endIndex, filteredGlobalData.length)} dari ${filteredGlobalData.length} baris data (Total Server: ${globalData.length})`;
+        
+        let pagHtml = '';
+        pagHtml += `<button onclick="ubahHalaman(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>&laquo; Prev</button>`;
+        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+            pagHtml += `<button onclick="ubahHalaman(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`;
         }
-
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHtml += `<button class="${i === currentPage ? 'active' : ''}" onclick="ubahHalaman(${i})">${i}</button>`;
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationHtml += `<span style="padding: 0 5px;">...</span>`;
-            paginationHtml += `<button onclick="ubahHalaman(${totalPages})">${totalPages}</button>`;
-        }
-
-        paginationHtml += `<button onclick="ubahHalaman(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next »</button>`;
-        paginationControls.innerHTML = paginationHtml;
+        pagHtml += `<button onclick="ubahHalaman(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next &raquo;</button>`;
+        paginationControls.innerHTML = pagHtml;
     }
 
-    function ubahHalaman(page) {
-        currentPage = page;
-        tampilkanTabelHalaman();
-        document.querySelector('.table-container').scrollTop = 0;
+    function ubahHalaman(targetPage) {
+        const totalPages = Math.ceil(filteredGlobalData.length / rowsPerPage) || 1;
+        if (targetPage >= 1 && targetPage <= totalPages) {
+            currentPage = targetPage;
+            renderTabel();
+        }
     }
 
-    function toggleSelectAll(source) {
+    function toggleSelectAll(master) {
         const checkboxes = document.querySelectorAll('.row-checkbox');
-        checkboxes.forEach(cb => cb.checked = source.checked);
+        checkboxes.forEach(cb => cb.checked = master.checked);
     }
 
     async function hapusDataTerpilih() {
         const checkboxes = document.querySelectorAll('.row-checkbox:checked');
         if (checkboxes.length === 0) {
-            alert('Silakan centang (mark) baris data yang ingin dihapus terlebih dahulu!');
+            alert('Pilih/centang minimal satu baris data pada tabel yang ingin dihapus!');
             return;
         }
 
-        if (!confirm(`Yakin ingin menghapus ${checkboxes.length} baris data yang ditandai?`)) return;
+        if (!confirm(`Yakin ingin menghapus ${checkboxes.length} baris data terpilih dari arsip server?`)) return;
 
-        const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        const indices = Array.from(checkboxes).map(cb => parseInt(cb.value));
 
         try {
             const res = await fetch('/api/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ indices: selectedIndices })
+                body: JSON.stringify({ indices })
             });
             const result = await res.json();
             if (result.success) {
                 globalData = result.data;
                 inisialisasiFilter();
                 terapkanFilter();
-                alert('Data yang ditandai berhasil dihapus!');
+                alert(result.message);
             } else {
                 alert('Gagal menghapus data.');
             }
-        } catch (err) {
-            console.error(err);
+        } catch (e) {
             alert('Terjadi kesalahan koneksi.');
+            console.error(e);
         }
     }
 
     async function hapusSemuaTerfilter() {
         if (filteredGlobalData.length === 0) {
-            alert('Tidak ada data terfilter untuk dihapus!');
+            alert('Tidak ada data terfilter untuk dihapus.');
             return;
         }
 
-        const selPeriode = periodeSelect.value;
-        const satdikKeyword = searchSatdikInput.value;
+        if (!confirm(`PERINGATAN: Anda akan menghapus SEMUA (${filteredGlobalData.length}) baris data yang sedang tampil/terfilter dari server. Lanjutkan?`)) return;
 
-        if (selPeriode === 'ALL' && !satdikKeyword) {
-            if (!confirm('PERINGATAN: Anda akan menghapus SELURUH DATA ARSIP di server! Lanjutkan?')) return;
-        } else {
-            if (!confirm(`Yakin ingin menghapus SEMUA data terfilter (${filteredGlobalData.length.toLocaleString('id-ID')} baris)?`)) return;
-        }
-
-        const indicesToDelete = filteredGlobalData.map(row => globalData.indexOf(row));
+        const indicesToRemove = filteredGlobalData.map(row => globalData.indexOf(row)).filter(idx => idx !== -1);
 
         try {
             const res = await fetch('/api/delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ indices: indicesToDelete })
+                body: JSON.stringify({ indices: indicesToRemove })
             });
             const result = await res.json();
             if (result.success) {
                 globalData = result.data;
                 inisialisasiFilter();
                 terapkanFilter();
-                alert('Semua data terfilter berhasil dihapus!');
+                alert(result.message);
             } else {
-                alert('Gagal menghapus data.');
+                alert('Gagal menghapus data terfilter.');
             }
-        } catch (err) {
-            console.error(err);
+        } catch (e) {
             alert('Terjadi kesalahan koneksi.');
+            console.error(e);
         }
+    }
+
+    function bangunDaftarArsip() {
+        const uniqueGroups = {};
+        globalData.forEach(item => {
+            const key = `${item.Bulan}___${item.Gelombang}___${item.JenisData || 'Lainnya'}___${item.GolonganJenis || 'Lainnya'}`;
+            if (!uniqueGroups[key]) {
+                uniqueGroups[key] = {
+                    bulan: item.Bulan,
+                    gelombang: item.Gelombang,
+                    jenisData: item.JenisData || 'Lainnya',
+                    golongan: item.GolonganJenis || 'Lainnya',
+                    count: 0
+                };
+            }
+            uniqueGroups[key].count++;
+        });
+
+        let html = '';
+        const keys = Object.keys(uniqueGroups);
+        if (keys.length === 0) {
+            archiveListContainer.innerHTML = '<p style="color: #6c757d;">Belum ada arsip tersimpan.</p>';
+            return;
+        }
+
+        keys.forEach(k => {
+            const g = uniqueGroups[k];
+            const isTPG = g.jenisData.toLowerCase().includes('profesi');
+            html += `
+                <div class="archive-card ${isTPG ? 'tpg' : ''}">
+                    <h4>📅 ${g.bulan} - ${g.gelombang}</h4>
+                    <p style="margin: 4px 0; font-size: 13px;"><b>Jenis:</b> ${g.jenisData}</p>
+                    <p style="margin: 4px 0; font-size: 13px;"><b>Golongan:</b> ${g.golongan}</p>
+                    <p style="margin: 4px 0 12px 0; font-size: 13px;"><b>Total Data:</b> ${g.count} baris</p>
+                    <button class="btn-info" onclick="filterBerdasarkanArsip('${g.bulan}', '${g.gelombang}', '${g.jenisData}')" style="width: 100%;">Lihat Rincian Data Ini</button>
+                </div>
+            `;
+        });
+        archiveListContainer.innerHTML = html;
+    }
+
+    function filterBerdasarkanArsip(bulan, gelombang, jenisData) {
+        tampilkanMenu('dashboard');
+        periodeSelect.value = `${bulan} - ${gelombang} (${jenisData})`;
+        terapkanFilter();
     }
 
     function bangunTabelRealisasi() {
         const realisasiBody = document.getElementById('realisasiBody');
         const realisasiFoot = document.getElementById('realisasiFoot');
 
-        realisasiBody.innerHTML = '';
-        realisasiFoot.innerHTML = '';
+        const groups = {};
+        globalData.forEach(row => {
+            const bulan = row.Bulan || '-';
+            const golongan = row.GolonganJenis || 'Lainnya';
+            const jenisData = row.JenisData || 'Lainnya';
+            const key = `${bulan}___${golongan}___${jenisData}`;
 
-        if (globalData.length === 0) {
-            realisasiBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Belum ada data realisasi tersimpan.</td></tr>';
-            return;
-        }
-
-        const colBruto = globalColumns.find(c => /bruto/i.test(c));
-        const colPph = globalColumns.find(c => /pph/i.test(c));
-        const colJkn = globalColumns.find(c => /jkn/i.test(c));
-        const colNetto = globalColumns.find(c => /netto/i.test(c));
-
-        function kalkulasiSubset(arr) {
-            let b = 0, p = 0, j = 0, n = 0;
-            arr.forEach(r => {
-                if (colBruto) b += parseFloat(r[colBruto]) || 0;
-                if (colPph) p += parseFloat(r[colPph]) || 0;
-                if (colJkn) j += parseFloat(r[colJkn]) || 0;
-                if (colNetto) n += parseFloat(r[colNetto]) || 0;
-            });
-            return { bruto: b, pph: p, jkn: j, netto: n };
-        }
-
-        let grandPenerima = 0, grandBruto = 0, grandPph = 0, grandJkn = 0, grandNetto = 0;
-
-        daftarBulanLengkap.forEach(bln => {
-            const dataBulan = globalData.filter(item => item.Bulan === bln);
-            if (dataBulan.length > 0) {
-                const kelompokKombinasi = [...new Set(dataBulan.map(r => `${r.GolonganJenis || 'Lainnya'}|${r.JenisData || 'Lainnya'}`))];
-
-                kelompokKombinasi.forEach(kombinasi => {
-                    const [gol, jenis] = kombinasi.split('|');
-                    const dataKelompok = dataBulan.filter(r => (r.GolonganJenis || 'Lainnya') === gol && (r.JenisData || 'Lainnya') === jenis);
-                    const totKelompok = kalkulasiSubset(dataKelompok);
-
-                    realisasiBody.innerHTML += `
-                        <tr>
-                            <td><b>${bln}</b></td>
-                            <td>${gol}</td>
-                            <td>${jenis}</td>
-                            <td>${dataKelompok.length.toLocaleString('id-ID')} Orang</td>
-                            <td>${formatAngka(totKelompok.bruto)}</td>
-                            <td>${formatAngka(totKelompok.pph)}</td>
-                            <td>${formatAngka(totKelompok.jkn)}</td>
-                            <td>${formatAngka(totKelompok.netto)}</td>
-                        </tr>
-                    `;
-                });
-
-                const totBulan = kalkulasiSubset(dataBulan);
-                grandPenerima += dataBulan.length;
-                grandBruto += totBulan.bruto;
-                grandPph += totBulan.pph;
-                grandJkn += totBulan.jkn;
-                grandNetto += totBulan.netto;
-
-                realisasiBody.innerHTML += `
-                    <tr class="row-total-bulan">
-                        <td colspan="3" style="text-align:right;">📌 TOTAL REALISASI KESELURUHAN BULAN ${bln.toUpperCase()}:</td>
-                        <td>${dataBulan.length.toLocaleString('id-ID')} Orang</td>
-                        <td>${formatAngka(totBulan.bruto)}</td>
-                        <td>${formatAngka(totBulan.pph)}</td>
-                        <td>${formatAngka(totBulan.jkn)}</td>
-                        <td>${formatAngka(totBulan.netto)}</td>
-                    </tr>
-                `;
+            if (!groups[key]) {
+                groups[key] = { bulan, golongan, jenisData, count: 0, bruto: 0, pph: 0, jkn: 0, netto: 0 };
             }
+
+            const brutoKey = cariKolomKeuangan(['bruto', 'jumlah_bruto', 'kotor']);
+            const pphKey = cariKolomKeuangan(['pph', 'pajak']);
+            const jknKey = cariKolomKeuangan(['jkn', 'bpjs']);
+            const nettoKey = cariKolomKeuangan(['netto', 'jumlah_netto', 'bersih']);
+
+            groups[key].count++;
+            if (brutoKey) groups[key].bruto += parseFloat(row[brutoKey]) || 0;
+            if (pphKey) groups[key].pph += parseFloat(row[pphKey]) || 0;
+            if (jknKey) groups[key].jkn += parseFloat(row[jknKey]) || 0;
+            if (nettoKey) groups[key].netto += parseFloat(row[nettoKey]) || 0;
         });
 
-        realisasiFoot.innerHTML = `
-            <tr>
-                <td colspan="3" style="text-align:center;"><strong>GRAND TOTAL KESELURUHAN REALISASI</strong></td>
-                <td><strong>${grandPenerima.toLocaleString('id-ID')} Orang</strong></td>
-                <td><strong>${formatAngka(grandBruto)}</strong></td>
-                <td><strong>${formatAngka(grandPph)}</strong></td>
-                <td><strong>${formatAngka(grandJkn)}</strong></td>
-                <td><strong>${formatAngka(grandNetto)}</strong></td>
-            </tr>
-        `;
-    }
-
-    function bangunDaftarArsip() {
-        archiveListContainer.innerHTML = '';
-        const uniquePeriod = [...new Set(globalData.map(item => `${item.Bulan}|${item.Gelombang}|${item.JenisData || 'Lainnya'}|${item.GolonganJenis || 'Lainnya'}`))];
-
-        if (uniquePeriod.length === 0) {
-            archiveListContainer.innerHTML = '<p>Belum ada arsip data tersimpan.</p>';
-            return;
-        }
-
-        uniquePeriod.forEach(p => {
-            const [bulan, gelombang, jenisData, golongan] = p.split('|');
-            if (!bulan || bulan === 'undefined' || !gelombang || gelombang === 'undefined') return;
-
-            const jumlahBaris = globalData.filter(item => item.Bulan === bulan && item.Gelombang === gelombang && (item.JenisData || 'Lainnya') === jenisData && (item.GolonganJenis || 'Lainnya') === golongan).length;
-
-            const isTPG = (jenisData === 'Tunjangan Profesi Guru');
-            const card = document.createElement('div');
-            card.className = `archive-card ${isTPG ? 'tpg' : ''}`;
-            card.innerHTML = `
-                <h4>📅 ${bulan} - ${gelombang}</h4>
-                <p style="margin: 2px 0; font-size: 12px; color: ${isTPG ? '#28a745' : '#007bff'}; font-weight: bold;">Jenis: ${jenisData}</p>
-                <p style="margin: 2px 0; font-size: 12px; color: #495057;">Golongan: ${golongan}</p>
-                <p style="margin: 5px 0; font-size: 13px; color: #555;">Total Penerima: <b>${jumlahBaris.toLocaleString('id-ID')} orang</b></p>
-                <button class="btn-primary" style="margin-top: 10px; width: 100%; padding: 6px; background-color: ${isTPG ? '#28a745' : '#007bff'};" onclick="pilihArsipPeriode('${bulan}', '${gelombang}', '${jenisData}')">Lihat Detail Arsip</button>
-            `;
-            archiveListContainer.appendChild(card);
-        });
-    }
-
-    function pilihArsipPeriode(bulan, gelombang, jenisData) {
-        periodeSelect.value = `${bulan} - ${gelombang} (${jenisData})`;
-        searchSatdikInput.value = '';
-        statusSelect.value = 'ALL';
-        searchInput.value = '';
-        tampilkanMenu('dashboard');
-        infoTabelJudul.textContent = `Arsip Periode: Bulan ${bulan} - ${gelombang} | Jenis: ${jenisData}`;
-    }
-
-    function cetakHasilPencarian() {
-        if (!filteredGlobalData || filteredGlobalData.length === 0) {
-            alert('Tidak ada data hasil pencarian/filter untuk dicetak!');
-            return;
-        }
-
-        const satdikKw = searchSatdikInput.value.trim();
-        const umumKw = searchInput.value.trim();
-        const periodeVal = periodeSelect.value;
-        const statusVal = statusSelect.value;
-
-        let infoArr = [];
-        if (periodeVal !== 'ALL') infoArr.push(`Periode: ${periodeVal}`);
-        if (satdikKw) infoArr.push(`SATDIK: "${satdikKw}"`);
-        if (statusVal !== 'ALL') infoArr.push(`Status: ${statusVal}`);
-        if (umumKw) infoArr.push(`Pencarian Umum: "${umumKw}"`);
-
-        const infoTeks = infoArr.length > 0 ? infoArr.join(' | ') : 'Semua Data Tersimpan';
-        document.getElementById('printFilterInfo').textContent = 'Filter/Pencarian Aktif: ' + infoTeks;
-
-        const kBulan = globalColumns.find(c => /bulan/i.test(c)) || 'Bulan';
-        const kGelombang = globalColumns.find(c => /gelombang/i.test(c)) || 'Gelombang';
-        const kNip = globalColumns.find(c => /nip/i.test(c)) || 'NIP';
-        const kNama = globalColumns.find(c => /^nama$|pegawai/i.test(c)) || 'Nama';
-        const kSatdik = globalColumns.find(c => /satdik|sekolah|instansi/i.test(c)) || satdikKey;
-        const kBruto = globalColumns.find(c => /bruto/i.test(c));
-        const kPph = globalColumns.find(c => /pph/i.test(c));
-        const kJkn = globalColumns.find(c => /jkn/i.test(c));
-        const kNetto = globalColumns.find(c => /netto/i.test(c));
-
-        const pHead = document.getElementById('printTableHead');
-        pHead.innerHTML = `
-            <tr style="background-color: #f2f2f2;">
-                <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 25px;">No</th>
-                <th style="border: 1px solid #000; padding: 4px;">Bulan</th>
-                <th style="border: 1px solid #000; padding: 4px;">Gelombang</th>
-                <th style="border: 1px solid #000; padding: 4px;">NIP</th>
-                <th style="border: 1px solid #000; padding: 4px;">Nama</th>
-                <th style="border: 1px solid #000; padding: 4px;">Satdik</th>
-                <th style="border: 1px solid #000; padding: 4px; text-align: right;">Salur Bruto</th>
-                <th style="border: 1px solid #000; padding: 4px; text-align: right;">PPH</th>
-                <th style="border: 1px solid #000; padding: 4px; text-align: right;">POT.JKN</th>
-                <th style="border: 1px solid #000; padding: 4px; text-align: right;">Salur Netto</th>
-            </tr>
-        `;
-
-        const pBody = document.getElementById('printTableBody');
         let bodyHtml = '';
-        let fullBruto = 0, fullPph = 0, fullJkn = 0, fullNetto = 0;
+        let tBruto = 0, tPph = 0, tJkn = 0, tNetto = 0, tRecipients = 0;
 
-        filteredGlobalData.forEach((row, idx) => {
-            const vBulan = row[kBulan] || '';
-            const vGelombang = row[kGelombang] || '';
-            const vNip = row[kNip] || '';
-            const vNama = row[kNama] || '';
-            const vSatdik = row[kSatdik] || '';
-            
-            const vBruto = kBruto ? parseFloat(row[kBruto]) || 0 : 0;
-            const vPph = kPph ? parseFloat(row[kPph]) || 0 : 0;
-            const vJkn = kJkn ? parseFloat(row[kJkn]) || 0 : 0;
-            const vNetto = kNetto ? parseFloat(row[kNetto]) || 0 : 0;
-
-            fullBruto += vBruto;
-            fullPph += vPph;
-            fullJkn += vJkn;
-            fullNetto += vNetto;
+        Object.values(groups).forEach(g => {
+            tBruto += g.bruto;
+            tPph += g.pph;
+            tJkn += g.jkn;
+            tNetto += g.netto;
+            tRecipients += g.count;
 
             bodyHtml += `
                 <tr>
-                    <td style="border: 1px solid #000; padding: 3px; text-align: center;">${idx + 1}</td>
-                    <td style="border: 1px solid #000; padding: 3px;">${vBulan}</td>
-                    <td style="border: 1px solid #000; padding: 3px;">${vGelombang}</td>
-                    <td style="border: 1px solid #000; padding: 3px;">${vNip}</td>
-                    <td style="border: 1px solid #000; padding: 3px;">${vNama}</td>
-                    <td style="border: 1px solid #000; padding: 3px;">${vSatdik}</td>
-                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vBruto)}</td>
-                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vPph)}</td>
-                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vJkn)}</td>
-                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vNetto)}</td>
+                    <td><b>${g.bulan}</b></td>
+                    <td>${g.golongan}</td>
+                    <td>${g.jenisData}</td>
+                    <td style="text-align: center;">${g.count} Penerima</td>
+                    <td>${formatRupiah(g.bruto)}</td>
+                    <td>${formatRupiah(g.pph)}</td>
+                    <td>${formatRupiah(g.jkn)}</td>
+                    <td><b>${formatRupiah(g.netto)}</b></td>
                 </tr>
             `;
         });
-        pBody.innerHTML = bodyHtml;
 
-        const pFoot = document.getElementById('printTableFoot');
-        pFoot.innerHTML = `
-            <tr style="font-weight: bold; background-color: #eaedd0;">
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;" colspan="6">TOTAL KESELURUHAN</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullBruto)}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullPph)}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullJkn)}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullNetto)}</td>
+        if (Object.keys(groups).length === 0) {
+            bodyHtml = `<tr><td colspan="8" style="text-align: center; padding: 20px;">Belum ada data realisasi.</td></tr>`;
+        }
+
+        realisasiBody.innerHTML = bodyHtml;
+        realisasiFoot.innerHTML = `
+            <tr>
+                <td colspan="3" style="text-align: right;">TOTAL KESELURUHAN REALISASI:</td>
+                <td style="text-align: center;">${tRecipients} Penerima</td>
+                <td>${formatRupiah(tBruto)}</td>
+                <td>${formatRupiah(tPph)}</td>
+                <td>${formatRupiah(tJkn)}</td>
+                <td>${formatRupiah(tNetto)}</td>
             </tr>
         `;
-
-        const skrg = new Date();
-        document.getElementById('printTotalBaris').textContent = filteredGlobalData.length.toLocaleString('id-ID');
-        document.getElementById('printWaktuCetak').textContent = skrg.toLocaleString('id-ID');
-        document.getElementById('printTanggalSekarang').textContent = skrg.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
-        const printArea = document.getElementById('printArea');
-        printArea.style.display = 'block';
-        window.print();
-        printArea.style.display = 'none';
     }
-</script>
 
+    function cetakHasilPencarian() {
+        if (filteredGlobalData.length === 0) {
+            alert('Tidak ada data untuk dicetak.');
+            return;
+        }
+
+        const printTableHead = document.getElementById('printTableHead');
+        const printTableBody = document.getElementById('printTableBody');
+        const printTableFoot = document.getElementById('printTableFoot');
+        const printFilterInfo = document.getElementById('printFilterInfo');
+
+        printFilterInfo.textContent = `Filter Periode: ${periodeSelect.value} | Status: ${statusSelect.value} | Pencarian SATDIK: ${searchSatdikInput.value || 'Semua'}`;
+
+        let headH = '<tr><th>No</th>';
+        globalColumns.forEach(c => headH += `<th>${c}</th>`);
+        headH += '</tr>';
+        printTableHead.innerHTML = headH;
+
+        let bodyH = '';
+        filteredGlobalData.forEach((row, idx) => {
+            bodyH += `<tr><td>${idx + 1}</td>`;
+            globalColumns.forEach(c => bodyH += `<td>${row[c] !== undefined ? row[c] : ''}</td>`);
+            bodyH += '</tr>';
+        });
+        printTableBody.innerHTML = bodyH;
+
+        const brutoKey = cariKolomKeuangan(['bruto', 'jumlah_bruto', 'kotor']);
+        const pphKey = cariKolomKeuangan(['pph', 'pajak']);
+        const jknKey = cariKolomKeuangan(['jkn', 'bpjs']);
+        const nettoKey = cariKolomKeuangan(['netto', 'jumlah_netto', 'bersih']);
+
+        let sBruto = 0, sPph = 0, sJkn = 0, sNetto = 0;
+        filteredGlobalData.forEach(row => {
+            if (brutoKey) sBruto += parseFloat(row[brutoKey]) || 0;
+            if (pphKey) sPph += parseFloat(row[pphKey]) || 0;
+            if (jknKey) sJkn += parseFloat(row[jknKey]) || 0;
+            if (nettoKey) sNetto += parseFloat(row[nettoKey]) || 0;
+        });
+
+        let footH = `<tr><td style="text-align: right; font-weight: bold;">TOTAL:</td>`;
+        globalColumns.forEach(c => {
+            if (c === brutoKey) footH += `<td>${formatRupiah(sBruto)}</td>`;
+            else if (c === pphKey) footH += `<td>${formatRupiah(sPph)}</td>`;
+            else if (c === jknKey) footH += `<td>${formatRupiah(sJkn)}</td>`;
+            else if (c === nettoKey) footH += `<td>${formatRupiah(sNetto)}</td>`;
+            else footH += `<td></td>`;
+        });
+        footH += '</tr>';
+        printTableFoot.innerHTML = footH;
+
+        const now = new Date();
+        document.getElementById('printTotalBaris').textContent = filteredGlobalData.length;
+        document.getElementById('printWaktuCetak').textContent = now.toLocaleString('id-ID');
+        document.getElementById('printTanggalSekarang').textContent = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        window.print();
+    }
+
+    periodeSelect.addEventListener('change', terapkanFilter);
+    searchSatdikInput.addEventListener('input', terapkanFilter);
+    statusSelect.addEventListener('change', terapkanFilter);
+    searchInput.addEventListener('input', terapkanFilter);
+</script>
 </body>
 </html>
