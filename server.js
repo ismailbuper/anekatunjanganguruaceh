@@ -106,14 +106,13 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
     }
 });
 
-// 3. Endpoint Hapus Data (Untuk Tombol Mark & Mark All)
+// 3. Endpoint Hapus Data
 app.post('/api/delete', (req, res) => {
     try {
         const { indices } = req.body;
         let allData = getSavedData();
 
         if (indices && Array.isArray(indices)) {
-            // Urutkan indeks secara descending agar saat splice indeks tidak bergeser
             const sortedIndices = [...indices].sort((a, b) => b - a);
             sortedIndices.forEach(idx => {
                 if (idx >= 0 && idx < allData.length) {
