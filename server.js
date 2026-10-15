@@ -50,7 +50,7 @@ app.get('/api/data', (req, res) => {
     res.json({ success: true, data });
 });
 
-// 2. Endpoint Upload File Excel (Logika Overwrite + Auto Clean Temp File)
+// 2. Endpoint Upload File Excel (Dioptimalkan untuk data besar & penanganan tanggal)
 app.post('/upload', upload.single('excelFile'), (req, res) => {
     try {
         if (!req.file) {
@@ -60,12 +60,12 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
         const { bulan, gelombang, golongan, jenisData } = req.body;
         const filePath = req.file.path;
 
-        // Membaca file Excel menggunakan SheetJS
-        const workbook = XLSX.readFile(filePath, { defval: "" });
+        // Membaca file Excel menggunakan SheetJS dengan opsi cellDates
+        const workbook = XLSX.readFile(filePath, { defval: "", cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
         
-        // Hapus file fisik sementara
+        // Hapus file fisik sementara di folder /tmp
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
         }
@@ -102,7 +102,7 @@ app.post('/upload', upload.single('excelFile'), (req, res) => {
 
     } catch (error) {
         console.error('Error saat upload:', error);
-        res.status(500).json({ success: false, message: 'Gagal memproses berkas Excel.' });
+        res.status(500).json({ success: false, message: 'Gagal memproses berkas Excel karena ukuran terlalu besar atau format tidak sesuai.' });
     }
 });
 
