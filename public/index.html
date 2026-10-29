@@ -295,7 +295,7 @@
                     <option value="Tunjangan Profesi Guru">Tunjangan Profesi Guru</option>
                     <option value="Kurang Salur TAYL">Kurang Salur TAYL</option>
                     <option value="Tambahan Penghasilan (Tamsil)">Tambahan Penghasilan (Tamsil)</option>
-                    <option value="Kekurangan Gaji">Kekurangan Gaji</option>
+                    <option value="Tunjangan Khusus Guru (TKG)">Kekurangan Gaji</option>
                     <option value="Insentif / Honorarium">Insentif / Honorarium</option>
                 </select>
             </div>
@@ -998,62 +998,110 @@
         `;
     }
 
-    function cetakHasilPencarian() {
-        if (filteredGlobalData.length === 0) {
-            alert('Tidak ada data untuk dicetak.');
+     function cetakHasilPencarian() {
+        if (!filteredGlobalData || filteredGlobalData.length === 0) {
+            alert('Tidak ada data hasil pencarian/filter untuk dicetak!');
             return;
         }
 
-        const printTableHead = document.getElementById('printTableHead');
-        const printTableBody = document.getElementById('printTableBody');
-        const printTableFoot = document.getElementById('printTableFoot');
-        const printFilterInfo = document.getElementById('printFilterInfo');
+        const satdikKw = searchSatdikInput.value.trim();
+        const umumKw = searchInput.value.trim();
+        const periodeVal = periodeSelect.value;
+        const statusVal = statusSelect.value;
 
-        printFilterInfo.textContent = `Filter Periode: ${periodeSelect.value} | Status: ${statusSelect.value} | Pencarian SATDIK: ${searchSatdikInput.value || 'Semua'}`;
+        let infoArr = [];
+        if (periodeVal !== 'ALL') infoArr.push(`Periode: ${periodeVal}`);
+        if (satdikKw) infoArr.push(`SATDIK: "${satdikKw}"`);
+        if (statusVal !== 'ALL') infoArr.push(`Status: ${statusVal}`);
+        if (umumKw) infoArr.push(`Pencarian Umum: "${umumKw}"`);
 
-        let headH = '<tr><th>No</th>';
-        globalColumns.forEach(c => headH += `<th>${c}</th>`);
-        headH += '</tr>';
-        printTableHead.innerHTML = headH;
+        const infoTeks = infoArr.length > 0 ? infoArr.join(' | ') : 'Semua Data Tersimpan';
+        document.getElementById('printFilterInfo').textContent = 'Filter/Pencarian Aktif: ' + infoTeks;
 
-        let bodyH = '';
+        const kBulan = globalColumns.find(c => /bulan/i.test(c)) || 'Bulan';
+        const kGelombang = globalColumns.find(c => /gelombang/i.test(c)) || 'Gelombang';
+        const kNip = globalColumns.find(c => /nip/i.test(c)) || 'NIP';
+        const kNama = globalColumns.find(c => /^nama$|pegawai/i.test(c)) || 'Nama';
+        const kSatdik = globalColumns.find(c => /satdik|sekolah|instansi/i.test(c)) || satdikKey;
+        const kBruto = globalColumns.find(c => /bruto/i.test(c));
+        const kPph = globalColumns.find(c => /pph/i.test(c));
+        const kJkn = globalColumns.find(c => /jkn/i.test(c));
+        const kNetto = globalColumns.find(c => /netto/i.test(c));
+
+        const pHead = document.getElementById('printTableHead');
+        pHead.innerHTML = `
+            <tr style="background-color: #f2f2f2;">
+                <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 25px;">No</th>
+                <th style="border: 1px solid #000; padding: 4px;">Bulan</th>
+                <th style="border: 1px solid #000; padding: 4px;">Gelombang</th>
+                <th style="border: 1px solid #000; padding: 4px;">NIP</th>
+                <th style="border: 1px solid #000; padding: 4px;">Nama</th>
+                <th style="border: 1px solid #000; padding: 4px;">Satdik</th>
+                <th style="border: 1px solid #000; padding: 4px; text-align: right;">Salur Bruto</th>
+                <th style="border: 1px solid #000; padding: 4px; text-align: right;">PPH</th>
+                <th style="border: 1px solid #000; padding: 4px; text-align: right;">POT.JKN</th>
+                <th style="border: 1px solid #000; padding: 4px; text-align: right;">Salur Netto</th>
+            </tr>
+        `;
+
+        const pBody = document.getElementById('printTableBody');
+        let bodyHtml = '';
+        let fullBruto = 0, fullPph = 0, fullJkn = 0, fullNetto = 0;
+
         filteredGlobalData.forEach((row, idx) => {
-            bodyH += `<tr><td>${idx + 1}</td>`;
-            globalColumns.forEach(c => bodyH += `<td>${row[c] !== undefined ? row[c] : ''}</td>`);
-            bodyH += '</tr>';
+            const vBulan = row[kBulan] || '';
+            const vGelombang = row[kGelombang] || '';
+            const vNip = row[kNip] || '';
+            const vNama = row[kNama] || '';
+            const vSatdik = row[kSatdik] || '';
+            
+            const vBruto = kBruto ? parseFloat(row[kBruto]) || 0 : 0;
+            const vPph = kPph ? parseFloat(row[kPph]) || 0 : 0;
+            const vJkn = kJkn ? parseFloat(row[kJkn]) || 0 : 0;
+            const vNetto = kNetto ? parseFloat(row[kNetto]) || 0 : 0;
+
+            fullBruto += vBruto;
+            fullPph += vPph;
+            fullJkn += vJkn;
+            fullNetto += vNetto;
+
+            bodyHtml += `
+                <tr>
+                    <td style="border: 1px solid #000; padding: 3px; text-align: center;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 3px;">${vBulan}</td>
+                    <td style="border: 1px solid #000; padding: 3px;">${vGelombang}</td>
+                    <td style="border: 1px solid #000; padding: 3px;">${vNip}</td>
+                    <td style="border: 1px solid #000; padding: 3px;">${vNama}</td>
+                    <td style="border: 1px solid #000; padding: 3px;">${vSatdik}</td>
+                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vBruto)}</td>
+                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vPph)}</td>
+                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vJkn)}</td>
+                    <td style="border: 1px solid #000; padding: 3px; text-align: right;">${formatAngka(vNetto)}</td>
+                </tr>
+            `;
         });
-        printTableBody.innerHTML = bodyH;
+        pBody.innerHTML = bodyHtml;
 
-        const brutoKey = cariKolomKeuangan(['bruto', 'jumlah_bruto', 'kotor']);
-        const pphKey = cariKolomKeuangan(['pph', 'pajak']);
-        const jknKey = cariKolomKeuangan(['jkn', 'bpjs']);
-        const nettoKey = cariKolomKeuangan(['netto', 'jumlah_netto', 'bersih']);
+        const pFoot = document.getElementById('printTableFoot');
+        pFoot.innerHTML = `
+            <tr style="font-weight: bold; background-color: #eaedd0;">
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;" colspan="6">TOTAL KESELURUHAN</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullBruto)}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullPph)}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullJkn)}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: right;">${formatAngka(fullNetto)}</td>
+            </tr>
+        `;
 
-        let sBruto = 0, sPph = 0, sJkn = 0, sNetto = 0;
-        filteredGlobalData.forEach(row => {
-            if (brutoKey) sBruto += parseFloat(row[brutoKey]) || 0;
-            if (pphKey) sPph += parseFloat(row[pphKey]) || 0;
-            if (jknKey) sJkn += parseFloat(row[jknKey]) || 0;
-            if (nettoKey) sNetto += parseFloat(row[nettoKey]) || 0;
-        });
+        const skrg = new Date();
+        document.getElementById('printTotalBaris').textContent = filteredGlobalData.length.toLocaleString('id-ID');
+        document.getElementById('printWaktuCetak').textContent = skrg.toLocaleString('id-ID');
+        document.getElementById('printTanggalSekarang').textContent = skrg.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-        let footH = `<tr><td style="text-align: right; font-weight: bold;">TOTAL:</td>`;
-        globalColumns.forEach(c => {
-            if (c === brutoKey) footH += `<td>${formatRupiah(sBruto)}</td>`;
-            else if (c === pphKey) footH += `<td>${formatRupiah(sPph)}</td>`;
-            else if (c === jknKey) footH += `<td>${formatRupiah(sJkn)}</td>`;
-            else if (c === nettoKey) footH += `<td>${formatRupiah(sNetto)}</td>`;
-            else footH += `<td></td>`;
-        });
-        footH += '</tr>';
-        printTableFoot.innerHTML = footH;
-
-        const now = new Date();
-        document.getElementById('printTotalBaris').textContent = filteredGlobalData.length;
-        document.getElementById('printWaktuCetak').textContent = now.toLocaleString('id-ID');
-        document.getElementById('printTanggalSekarang').textContent = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
+        const printArea = document.getElementById('printArea');
+        printArea.style.display = 'block';
         window.print();
+        printArea.style.display = 'none';
     }
 
     periodeSelect.addEventListener('change', terapkanFilter);
